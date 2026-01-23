@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="heatGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#e74c3c"/>
+      <stop offset="50%" style="stop-color:#f39c12"/>
+      <stop offset="100%" style="stop-color:#2ecc71"/>
+    </linearGradient>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#0d0d1a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGradient)"/>
+
+  <!-- WiFi waves with heat gradient -->
+  <g fill="none" stroke="url(#heatGradient)" stroke-width="32" stroke-linecap="round">
+    <!-- Outer wave -->
+    <path d="M126 220 Q256 90 386 220" opacity="0.5"/>
+    <!-- Middle wave -->
+    <path d="M166 260 Q256 150 346 260" opacity="0.75"/>
+    <!-- Inner wave -->
+    <path d="M206 300 Q256 210 306 300"/>
+  </g>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="340" r="36" fill="url(#heatGradient)"/>
+
+  <!-- Speed indicator bars -->
+  <g fill="url(#heatGradient)">
+    <rect x="180" y="400" width="24" height="60" rx="8" opacity="0.5"/>
+    <rect x="220" y="380" width="24" height="80" rx="8" opacity="0.7"/>
+    <rect x="260" y="360" width="24" height="100" rx="8" opacity="0.85"/>
+    <rect x="300" y="380" width="24" height="80" rx="8" opacity="0.7"/>
+    <rect x="340" y="400" width="24" height="60" rx="8" opacity="0.5"/>
+  </g>
+</svg>
