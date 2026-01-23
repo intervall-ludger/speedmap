@@ -1,6 +1,7 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+
 let store = null;
 let projects = [];
 let currentProject = null;
