@@ -6,13 +6,58 @@ let projects = [];
 let currentProject = null;
 let selectedCell = null;
 let floorplanImage = null;
-let scalePoint1 = null;
-let scalePoint2 = null;
-let draggingPoint = null;
 let gridOffset = { x: 0, y: 0 };
 let dragStart = null;
 let speedTestRuns = 1;
 let heatmapType = 'download';
+let suggestedCell = null;
+
+function getMinDistanceToMeasurement(col, row, measurements) {
+    if (measurements.length === 0) return Infinity;
+    let minDist = Infinity;
+    for (const m of measurements) {
+        const dist = Math.hypot(col - m.grid_x, row - m.grid_y);
+        if (dist < minDist) minDist = dist;
+    }
+    return minDist;
+}
+
+function findSuggestedCell() {
+    if (!currentProject) return null;
+    const measurements = currentProject.measurements;
+
+    let maxDist = -1;
+    let suggested = null;
+
+    for (let row = 0; row < currentProject.grid_rows; row++) {
+        for (let col = 0; col < currentProject.grid_cols; col++) {
+            const hasMeasurement = measurements.some(m => m.grid_x === col && m.grid_y === row);
+            if (hasMeasurement) continue;
+
+            const dist = measurements.length === 0
+                ? Math.hypot(col - currentProject.grid_cols/2, row - currentProject.grid_rows/2)
+                : getMinDistanceToMeasurement(col, row, measurements);
+
+            if (dist > maxDist) {
+                maxDist = dist;
+                suggested = { col, row };
+            }
+        }
+    }
+    return suggested;
+}
+
+function getConfidence(col, row, measurements) {
+    if (measurements.length === 0) return 0;
+    const dist = getMinDistanceToMeasurement(col, row, measurements);
+    return Math.max(0, Math.min(1, 1 - dist / 5));
+}
+
+function getConfidenceColor(confidence) {
+    if (confidence > 0.7) return '#51cf66';
+    if (confidence > 0.4) return '#fcc419';
+    return '#ff6b6b';
+}
 
 const debugLogs = [];
 
@@ -140,15 +185,24 @@ function renderProjectList() {
         form.style.gap = '10px';
         newBtn.style.display = 'none';
     } else {
-        list.innerHTML = projects.map(p => `
-            <div class="project-item" data-id="${p.id}">
-                <div class="project-info">
-                    <h3>${p.name}</h3>
-                    <p>${p.measurements.length} measurements · ${new Date(p.updated_at).toLocaleDateString()}</p>
+        list.innerHTML = projects.map(p => {
+            const date = new Date(p.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            const thumb = p.floorplan_data
+                ? `<img src="${p.floorplan_data}" class="project-thumb">`
+                : '<div class="project-thumb-empty"><span class="material-symbols-outlined">image</span></div>';
+            const count = p.measurements?.length || 0;
+            return `
+                <div class="project-item" data-id="${p.id}">
+                    ${thumb}
+                    <div class="project-content">
+                        <h3>${p.name}</h3>
+                        <p>${count} measurements</p>
+                        <p class="date">${date}</p>
+                    </div>
+                    <button class="project-delete" data-id="${p.id}"><span class="material-symbols-outlined">delete</span></button>
                 </div>
-                <span class="project-arrow">›</span>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         form.style.display = 'none';
         newBtn.style.display = 'block';
         setupProjectListeners();
@@ -157,31 +211,37 @@ function renderProjectList() {
 
 function setupProjectListeners() {
     document.querySelectorAll('.project-item').forEach(item => {
-        let longPressTimer = null;
-        let didLongPress = false;
+        let startY = 0;
+        let moved = false;
 
-        item.addEventListener('touchstart', () => {
-            didLongPress = false;
-            longPressTimer = setTimeout(() => {
-                didLongPress = true;
-                item.classList.add('long-press');
-                const project = projects.find(p => p.id === item.dataset.id);
-                showDeleteDialog(project);
-            }, 500);
+        item.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.project-delete')) return;
+            startY = e.touches[0].clientY;
+            moved = false;
         });
 
-        item.addEventListener('touchend', () => {
-            clearTimeout(longPressTimer);
-            item.classList.remove('long-press');
-            if (!didLongPress) {
+        item.addEventListener('touchmove', (e) => {
+            if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                moved = true;
+            }
+        });
+
+        item.addEventListener('touchend', (e) => {
+            if (e.target.closest('.project-delete')) return;
+            if (!moved) {
                 const project = projects.find(p => p.id === item.dataset.id);
                 if (project) loadProject(project);
             }
         });
+    });
 
-        item.addEventListener('touchmove', () => {
-            clearTimeout(longPressTimer);
-            item.classList.remove('long-press');
+    document.querySelectorAll('.project-delete').forEach(btn => {
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const project = projects.find(p => p.id === btn.dataset.id);
+            log(`Delete tapped: ${project?.name}`);
+            if (project) showDeleteDialog(project);
         });
     });
 }
@@ -205,6 +265,7 @@ function showDeleteDialog(project) {
     requestAnimationFrame(() => dialog.classList.add('open'));
 
     document.getElementById('delete-project-btn').addEventListener('click', async () => {
+        log(`Deleting project: ${project.name}`);
         projects = projects.filter(p => p.id !== project.id);
         await saveProjects();
         dialog.classList.remove('open');
@@ -247,18 +308,13 @@ function setupEventListeners() {
         document.getElementById('floorplan-input').click();
     });
     document.getElementById('floorplan-input').addEventListener('change', handleFloorplanSelect);
-    document.getElementById('floorplan-continue-btn').addEventListener('click', () => showScreen('scale'));
-
-    document.getElementById('set-scale-btn').addEventListener('click', setScale);
-    document.getElementById('scale-continue-btn').addEventListener('click', () => showScreen('grid'));
+    document.getElementById('floorplan-continue-btn').addEventListener('click', () => showScreen('grid'));
 
     document.querySelectorAll('.cell-size-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.cell-size-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            currentProject.grid_cell_size = parseFloat(btn.dataset.size);
-            recalculateGrid();
-            drawGridCanvas();
+            setGridDensity(btn.dataset.density);
         });
     });
 
@@ -283,6 +339,7 @@ async function createProject() {
     const name = nameInput.value.trim();
     if (!name) return;
 
+    log(`Creating project: ${name}`);
     const id = await invoke('generate_uuid');
     const now = new Date().toISOString();
 
@@ -293,29 +350,27 @@ async function createProject() {
         floorplan_data: null,
         image_width: 0,
         image_height: 0,
-        scale_point1_x: 0, scale_point1_y: 0,
-        scale_point2_x: 0, scale_point2_y: 0,
-        wall_length_meters: 1.0,
-        meters_per_pixel: 0.01,
-        scale_set: false,
         grid_offset_x: 0, grid_offset_y: 0,
-        grid_cell_size: 1.0,
+        grid_density: 'medium',
         grid_cols: 10, grid_rows: 10,
         measurements: []
     };
 
     projects.unshift(currentProject);
     await saveProjects();
+    log(`Project created: ${id}`);
     nameInput.value = '';
     showScreen('floorplan');
 }
 
 function loadProject(project) {
+    log(`Loading project: ${project.name} (${project.measurements?.length || 0} measurements)`);
     currentProject = project;
 
     if (project.floorplan_data) {
         floorplanImage = new Image();
         floorplanImage.onload = () => {
+            log(`Floorplan loaded: ${project.image_width}x${project.image_height}`);
             showScreen('measure');
             setTimeout(() => drawMeasureCanvas(), 100);
         };
@@ -326,15 +381,15 @@ function loadProject(project) {
 }
 
 function showScreen(screenId) {
+    log(`Screen: ${screenId}`);
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(screenId + '-screen').classList.add('active');
 
     if (screenId === 'start') {
         renderProjectList();
-    } else if (screenId === 'scale' && floorplanImage) {
-        setTimeout(() => { initScaleCanvas(); drawScaleCanvas(); }, 100);
     } else if (screenId === 'grid' && floorplanImage) {
-        setTimeout(() => { initGridCanvas(); drawGridCanvas(); }, 200);
+        setGridDensity(currentProject.grid_density || 'medium');
+        setTimeout(() => { initGridCanvas(); drawGridCanvas(); }, 100);
     } else if (screenId === 'measure' && floorplanImage) {
         setTimeout(() => { initMeasureCanvas(); drawMeasureCanvas(); }, 200);
     } else if (screenId === 'heatmap' && floorplanImage) {
@@ -396,118 +451,13 @@ function getScaleTransform() {
     return { scale, offsetX, offsetY };
 }
 
-let scaleCanvas, scaleCtx;
-
-function initScaleCanvas() {
-    scaleCanvas = document.getElementById('scale-canvas');
-    scaleCtx = scaleCanvas.getContext('2d');
-
-    const container = document.getElementById('scale-canvas-container');
-    scaleCanvas.width = container.clientWidth * window.devicePixelRatio;
-    scaleCanvas.height = container.clientHeight * window.devicePixelRatio;
-    scaleCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-    scalePoint1 = { x: currentProject.scale_point1_x, y: currentProject.scale_point1_y };
-    scalePoint2 = { x: currentProject.scale_point2_x, y: currentProject.scale_point2_y };
-
-    scaleCanvas.addEventListener('pointerdown', scalePointerDown);
-    scaleCanvas.addEventListener('pointermove', scalePointerMove);
-    scaleCanvas.addEventListener('pointerup', scalePointerUp);
-}
-
-function drawScaleCanvas() {
-    if (!scaleCtx || !floorplanImage) return;
-
-    const container = document.getElementById('scale-canvas-container');
-    scaleCtx.clearRect(0, 0, container.clientWidth, container.clientHeight);
-
-    const { scale, offsetX, offsetY } = getScaleTransform();
-    scaleCtx.drawImage(floorplanImage, offsetX, offsetY, currentProject.image_width * scale, currentProject.image_height * scale);
-
-    const p1 = { x: offsetX + scalePoint1.x * scale, y: offsetY + scalePoint1.y * scale };
-    const p2 = { x: offsetX + scalePoint2.x * scale, y: offsetY + scalePoint2.y * scale };
-
-    scaleCtx.beginPath();
-    scaleCtx.moveTo(p1.x, p1.y);
-    scaleCtx.lineTo(p2.x, p2.y);
-    scaleCtx.strokeStyle = '#4a69bd';
-    scaleCtx.lineWidth = 3;
-    scaleCtx.stroke();
-
-    [{ p: p1, color: '#4a69bd' }, { p: p2, color: '#e74c3c' }].forEach(({ p, color }) => {
-        scaleCtx.beginPath();
-        scaleCtx.arc(p.x, p.y, 15, 0, Math.PI * 2);
-        scaleCtx.fillStyle = color + '99';
-        scaleCtx.fill();
-        scaleCtx.strokeStyle = 'white';
-        scaleCtx.lineWidth = 2;
-        scaleCtx.stroke();
-    });
-}
-
-function scalePointerDown(e) {
-    const rect = scaleCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const { scale, offsetX, offsetY } = getScaleTransform();
-
-    const p1 = { x: offsetX + scalePoint1.x * scale, y: offsetY + scalePoint1.y * scale };
-    const p2 = { x: offsetX + scalePoint2.x * scale, y: offsetY + scalePoint2.y * scale };
-
-    if (Math.hypot(x - p1.x, y - p1.y) < 25) draggingPoint = 1;
-    else if (Math.hypot(x - p2.x, y - p2.y) < 25) draggingPoint = 2;
-}
-
-function scalePointerMove(e) {
-    if (!draggingPoint) return;
-
-    const rect = scaleCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const { scale, offsetX, offsetY } = getScaleTransform();
-
-    const imgX = Math.max(0, Math.min(currentProject.image_width, (x - offsetX) / scale));
-    const imgY = Math.max(0, Math.min(currentProject.image_height, (y - offsetY) / scale));
-
-    if (draggingPoint === 1) scalePoint1 = { x: imgX, y: imgY };
-    else scalePoint2 = { x: imgX, y: imgY };
-
-    drawScaleCanvas();
-}
-
-function scalePointerUp() {
-    if (draggingPoint) {
-        currentProject.scale_point1_x = scalePoint1.x;
-        currentProject.scale_point1_y = scalePoint1.y;
-        currentProject.scale_point2_x = scalePoint2.x;
-        currentProject.scale_point2_y = scalePoint2.y;
-    }
-    draggingPoint = null;
-}
-
-function setScale() {
-    const length = parseFloat(document.getElementById('wall-length').value);
-    if (!length || length <= 0) return;
-
-    currentProject.wall_length_meters = length;
-
-    const dx = scalePoint2.x - scalePoint1.x;
-    const dy = scalePoint2.y - scalePoint1.y;
-    const pixelDistance = Math.sqrt(dx * dx + dy * dy);
-    if (pixelDistance < 10) return;
-
-    currentProject.meters_per_pixel = length / pixelDistance;
-    currentProject.scale_set = true;
-
-    recalculateGrid();
-    document.getElementById('scale-continue-btn').disabled = false;
-    saveProject();
-}
-
-function recalculateGrid() {
-    const cellPixels = currentProject.grid_cell_size / currentProject.meters_per_pixel;
-    currentProject.grid_cols = Math.ceil(currentProject.image_width / cellPixels);
-    currentProject.grid_rows = Math.ceil(currentProject.image_height / cellPixels);
+function setGridDensity(density) {
+    currentProject.grid_density = density;
+    const targetCols = density === 'coarse' ? 6 : density === 'fine' ? 16 : 10;
+    currentProject.grid_cols = targetCols;
+    currentProject.grid_rows = Math.max(1, Math.round(targetCols * (currentProject.image_height / currentProject.image_width)));
+    log(`Grid: ${density} (${currentProject.grid_cols}x${currentProject.grid_rows})`);
+    drawGridCanvas();
 }
 
 let gridCanvas, gridCtx;
@@ -537,7 +487,7 @@ function drawGridCanvas() {
     const { scale, offsetX, offsetY } = getScaleTransform();
     gridCtx.drawImage(floorplanImage, offsetX, offsetY, currentProject.image_width * scale, currentProject.image_height * scale);
 
-    const cellPixels = (currentProject.grid_cell_size / currentProject.meters_per_pixel) * scale;
+    const cellPixels = (currentProject.image_width / currentProject.grid_cols) * scale;
     const gridX = offsetX + gridOffset.x * scale;
     const gridY = offsetY + gridOffset.y * scale;
 
@@ -580,6 +530,12 @@ function gridPointerUp() {
 }
 
 let measureCanvas, measureCtx;
+let measureZoom = 1;
+let measurePan = { x: 0, y: 0 };
+let measureTouches = [];
+let measureLastDist = 0;
+let measureLastCenter = null;
+let measureIsPanning = false;
 
 function initMeasureCanvas() {
     measureCanvas = document.getElementById('measure-canvas');
@@ -591,9 +547,102 @@ function initMeasureCanvas() {
     measureCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
     gridOffset = { x: currentProject.grid_offset_x, y: currentProject.grid_offset_y };
+    measureZoom = 1;
+    measurePan = { x: 0, y: 0 };
 
+    measureCanvas.addEventListener('touchstart', measureTouchStart, { passive: false });
+    measureCanvas.addEventListener('touchmove', measureTouchMove, { passive: false });
+    measureCanvas.addEventListener('touchend', measureTouchEnd);
     measureCanvas.addEventListener('click', measureClick);
     updateMeasureUI();
+    startMeasureAnimation();
+}
+
+function measureTouchStart(e) {
+    measureTouches = Array.from(e.touches);
+    if (measureTouches.length === 2) {
+        e.preventDefault();
+        measureLastDist = Math.hypot(
+            measureTouches[0].clientX - measureTouches[1].clientX,
+            measureTouches[0].clientY - measureTouches[1].clientY
+        );
+        measureLastCenter = {
+            x: (measureTouches[0].clientX + measureTouches[1].clientX) / 2,
+            y: (measureTouches[0].clientY + measureTouches[1].clientY) / 2
+        };
+    } else if (measureTouches.length === 1 && measureZoom > 1) {
+        measureIsPanning = false;
+        measureLastCenter = { x: measureTouches[0].clientX, y: measureTouches[0].clientY };
+    }
+}
+
+function measureTouchMove(e) {
+    const touches = Array.from(e.touches);
+
+    if (touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+            touches[0].clientX - touches[1].clientX,
+            touches[0].clientY - touches[1].clientY
+        );
+        const center = {
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+
+        if (measureLastDist > 0) {
+            const scale = dist / measureLastDist;
+            measureZoom = Math.max(1, Math.min(5, measureZoom * scale));
+        }
+
+        if (measureLastCenter && measureZoom > 1) {
+            measurePan.x += center.x - measureLastCenter.x;
+            measurePan.y += center.y - measureLastCenter.y;
+        }
+
+        measureLastDist = dist;
+        measureLastCenter = center;
+        clampMeasurePan();
+        drawMeasureCanvas();
+    } else if (touches.length === 1 && measureZoom > 1 && measureLastCenter) {
+        e.preventDefault();
+        measureIsPanning = true;
+        measurePan.x += touches[0].clientX - measureLastCenter.x;
+        measurePan.y += touches[0].clientY - measureLastCenter.y;
+        measureLastCenter = { x: touches[0].clientX, y: touches[0].clientY };
+        clampMeasurePan();
+        drawMeasureCanvas();
+    }
+}
+
+function measureTouchEnd(e) {
+    measureTouches = Array.from(e.touches);
+    if (measureTouches.length < 2) {
+        measureLastDist = 0;
+    }
+    if (measureTouches.length === 0) {
+        measureLastCenter = null;
+    }
+}
+
+function clampMeasurePan() {
+    const container = document.getElementById('measure-canvas-container');
+    const maxPan = (measureZoom - 1) * container.clientWidth / 2;
+    const maxPanY = (measureZoom - 1) * container.clientHeight / 2;
+    measurePan.x = Math.max(-maxPan, Math.min(maxPan, measurePan.x));
+    measurePan.y = Math.max(-maxPanY, Math.min(maxPanY, measurePan.y));
+}
+
+let measureAnimationId = null;
+function startMeasureAnimation() {
+    if (measureAnimationId) cancelAnimationFrame(measureAnimationId);
+    function animate() {
+        if (document.getElementById('measure-screen').classList.contains('active')) {
+            drawMeasureCanvas();
+            measureAnimationId = requestAnimationFrame(animate);
+        }
+    }
+    animate();
 }
 
 function drawMeasureCanvas() {
@@ -602,49 +651,98 @@ function drawMeasureCanvas() {
     const container = document.getElementById('measure-canvas-container');
     measureCtx.clearRect(0, 0, container.clientWidth, container.clientHeight);
 
+    measureCtx.save();
+    measureCtx.translate(container.clientWidth / 2 + measurePan.x, container.clientHeight / 2 + measurePan.y);
+    measureCtx.scale(measureZoom, measureZoom);
+    measureCtx.translate(-container.clientWidth / 2, -container.clientHeight / 2);
+
     const { scale, offsetX, offsetY } = getScaleTransform();
     measureCtx.drawImage(floorplanImage, offsetX, offsetY, currentProject.image_width * scale, currentProject.image_height * scale);
 
-    const cellPixels = (currentProject.grid_cell_size / currentProject.meters_per_pixel) * scale;
+    const cellPixels = (currentProject.image_width / currentProject.grid_cols) * scale;
     const gridX = offsetX + gridOffset.x * scale;
     const gridY = offsetY + gridOffset.y * scale;
+
+    suggestedCell = findSuggestedCell();
+    const totalCells = currentProject.grid_rows * currentProject.grid_cols;
+    const measured = currentProject.measurements.length;
+
+    const hint = document.querySelector('#measure-screen .hint');
+    if (hint) {
+        hint.textContent = measured === 0
+            ? 'Tap the suggested cell to start'
+            : `${measured} of ${totalCells} cells measured`;
+    }
 
     currentProject.measurements.forEach(m => {
         const cx = gridX + (m.grid_x + 0.5) * cellPixels;
         const cy = gridY + (m.grid_y + 0.5) * cellPixels;
         measureCtx.fillStyle = getSpeedColor(m.download) + '99';
         measureCtx.fillRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
+
+        measureCtx.fillStyle = 'white';
+        measureCtx.font = `bold ${Math.min(cellPixels * 0.35, 14)}px -apple-system, sans-serif`;
+        measureCtx.textAlign = 'center';
+        measureCtx.textBaseline = 'middle';
+        measureCtx.fillText(Math.round(m.download), cx, cy);
     });
+
+    if (suggestedCell && !selectedCell) {
+        const cx = gridX + (suggestedCell.col + 0.5) * cellPixels;
+        const cy = gridY + (suggestedCell.row + 0.5) * cellPixels;
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+        measureCtx.strokeStyle = `rgba(92, 124, 250, ${0.5 + pulse * 0.5})`;
+        measureCtx.lineWidth = 3;
+        measureCtx.strokeRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
+        measureCtx.fillStyle = `rgba(92, 124, 250, ${0.1 + pulse * 0.15})`;
+        measureCtx.fillRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
+    }
 
     if (selectedCell) {
         const cx = gridX + (selectedCell.col + 0.5) * cellPixels;
         const cy = gridY + (selectedCell.row + 0.5) * cellPixels;
-        measureCtx.strokeStyle = '#4a69bd';
+        measureCtx.strokeStyle = '#5c7cfa';
         measureCtx.lineWidth = 3;
         measureCtx.strokeRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
-        measureCtx.fillStyle = '#4a69bd4d';
+        measureCtx.fillStyle = 'rgba(92, 124, 250, 0.3)';
         measureCtx.fillRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
     }
 
-    measureCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    measureCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     measureCtx.lineWidth = 1;
 
     for (let row = 0; row < currentProject.grid_rows; row++) {
         for (let col = 0; col < currentProject.grid_cols; col++) {
-            const cx = gridX + (col + 0.5) * cellPixels;
-            const cy = gridY + (row + 0.5) * cellPixels;
-            measureCtx.strokeRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
+            const hasMeasurement = currentProject.measurements.some(m => m.grid_x === col && m.grid_y === row);
+            if (!hasMeasurement) {
+                const cx = gridX + (col + 0.5) * cellPixels;
+                const cy = gridY + (row + 0.5) * cellPixels;
+                measureCtx.strokeRect(cx - cellPixels/2, cy - cellPixels/2, cellPixels, cellPixels);
+            }
         }
     }
+
+    measureCtx.restore();
 }
 
 function measureClick(e) {
+    if (measureIsPanning) {
+        measureIsPanning = false;
+        return;
+    }
+
     const rect = measureCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const container = document.getElementById('measure-canvas-container');
+
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    x = (x - container.clientWidth / 2 - measurePan.x) / measureZoom + container.clientWidth / 2;
+    y = (y - container.clientHeight / 2 - measurePan.y) / measureZoom + container.clientHeight / 2;
+
     const { scale, offsetX, offsetY } = getScaleTransform();
 
-    const cellPixels = (currentProject.grid_cell_size / currentProject.meters_per_pixel) * scale;
+    const cellPixels = (currentProject.image_width / currentProject.grid_cols) * scale;
     const gridX = offsetX + gridOffset.x * scale;
     const gridY = offsetY + gridOffset.y * scale;
 
@@ -687,15 +785,14 @@ function updateMeasureUI() {
 
 async function clearMeasurements() {
     if (!currentProject) return;
-
+    log(`Clearing all measurements from ${currentProject.name}`);
     currentProject.measurements = [];
     selectedCell = null;
     document.getElementById('download-value').textContent = '-';
     document.getElementById('upload-value').textContent = '-';
-    updateMeasureUI();
-    drawMeasureCanvas();
     await saveProject();
     showToast('Measurements cleared');
+    showScreen('grid');
 }
 
 // red->yellow->green gradient
@@ -771,45 +868,50 @@ function drawHeatmapCanvas() {
     const { scale, offsetX, offsetY } = getScaleTransform();
     heatmapCtx.drawImage(floorplanImage, offsetX, offsetY, currentProject.image_width * scale, currentProject.image_height * scale);
 
-    const cellPixels = (currentProject.grid_cell_size / currentProject.meters_per_pixel) * scale;
+    const cellPixels = (currentProject.image_width / currentProject.grid_cols) * scale;
     const gridX = offsetX + gridOffset.x * scale;
     const gridY = offsetY + gridOffset.y * scale;
 
     const measurements = currentProject.measurements;
     if (measurements.length === 0) return;
 
+    const isConfidence = heatmapType === 'confidence';
     const isDownload = heatmapType === 'download';
-    const speeds = measurements.map(m => isDownload ? m.download : m.upload);
-    const minSpeed = Math.min(...speeds);
-    const maxSpeed = Math.max(...speeds);
+
+    let minSpeed = 0, maxSpeed = 100;
+    if (!isConfidence) {
+        const speeds = measurements.map(m => isDownload ? m.download : m.upload);
+        minSpeed = Math.min(...speeds);
+        maxSpeed = Math.max(...speeds);
+    }
 
     const subDivisions = 10;
     const subCellPixels = cellPixels / subDivisions;
 
-    const heatmapData = [];
     for (let row = 0; row < currentProject.grid_rows * subDivisions; row++) {
         for (let col = 0; col < currentProject.grid_cols * subDivisions; col++) {
             const gridCol = (col + 0.5) / subDivisions;
             const gridRow = (row + 0.5) / subDivisions;
-            const speed = interpolateSpeed(measurements, gridCol, gridRow, 2, isDownload);
-            heatmapData.push({ col, row, speed });
+            const x = gridX + col * subCellPixels;
+            const y = gridY + row * subCellPixels;
+
+            if (isConfidence) {
+                const conf = getConfidence(gridCol, gridRow, measurements);
+                heatmapCtx.fillStyle = getConfidenceColor(conf);
+            } else {
+                const speed = interpolateSpeed(measurements, gridCol, gridRow, 2, isDownload);
+                heatmapCtx.fillStyle = getSpeedColor(speed, minSpeed, maxSpeed);
+            }
+            heatmapCtx.globalAlpha = 0.7;
+            heatmapCtx.fillRect(x, y, subCellPixels + 0.5, subCellPixels + 0.5);
         }
     }
-
-    heatmapData.forEach(({ col, row, speed }) => {
-        const x = gridX + col * subCellPixels;
-        const y = gridY + row * subCellPixels;
-        heatmapCtx.fillStyle = getSpeedColor(speed, minSpeed, maxSpeed);
-        heatmapCtx.globalAlpha = 0.65;
-        heatmapCtx.fillRect(x, y, subCellPixels + 0.5, subCellPixels + 0.5);
-    });
 
     heatmapCtx.globalAlpha = 1.0;
 
     measurements.forEach(m => {
         const cx = gridX + (m.grid_x + 0.5) * cellPixels;
         const cy = gridY + (m.grid_y + 0.5) * cellPixels;
-        const value = isDownload ? m.download : m.upload;
 
         heatmapCtx.beginPath();
         heatmapCtx.arc(cx, cy, Math.min(cellPixels * 0.3, 20), 0, Math.PI * 2);
@@ -819,26 +921,36 @@ function drawHeatmapCanvas() {
         heatmapCtx.lineWidth = 1;
         heatmapCtx.stroke();
 
-        heatmapCtx.fillStyle = '#333';
-        heatmapCtx.font = `bold ${Math.min(cellPixels * 0.25, 12)}px -apple-system, sans-serif`;
-        heatmapCtx.textAlign = 'center';
-        heatmapCtx.textBaseline = 'middle';
-        heatmapCtx.fillText(Math.round(value), cx, cy);
+        if (!isConfidence) {
+            const value = isDownload ? m.download : m.upload;
+            heatmapCtx.fillStyle = '#333';
+            heatmapCtx.font = `bold ${Math.min(cellPixels * 0.25, 12)}px -apple-system, sans-serif`;
+            heatmapCtx.textAlign = 'center';
+            heatmapCtx.textBaseline = 'middle';
+            heatmapCtx.fillText(Math.round(value), cx, cy);
+        }
     });
 
-    updateHeatmapLegend(minSpeed, maxSpeed);
+    updateHeatmapLegend(minSpeed, maxSpeed, isConfidence);
 }
 
-function updateHeatmapLegend(minSpeed, maxSpeed) {
-    const midSpeed = (minSpeed + maxSpeed) / 2;
-
-    document.getElementById('legend-fast').style.background = getSpeedColor(maxSpeed, minSpeed, maxSpeed);
-    document.getElementById('legend-medium').style.background = getSpeedColor(midSpeed, minSpeed, maxSpeed);
-    document.getElementById('legend-slow').style.background = getSpeedColor(minSpeed, minSpeed, maxSpeed);
-
-    document.getElementById('legend-fast-text').textContent = `${Math.round(maxSpeed)} Mbps`;
-    document.getElementById('legend-medium-text').textContent = `${Math.round(midSpeed)} Mbps`;
-    document.getElementById('legend-slow-text').textContent = `${Math.round(minSpeed)} Mbps`;
+function updateHeatmapLegend(minSpeed, maxSpeed, isConfidence) {
+    if (isConfidence) {
+        document.getElementById('legend-fast').style.background = '#51cf66';
+        document.getElementById('legend-medium').style.background = '#fcc419';
+        document.getElementById('legend-slow').style.background = '#ff6b6b';
+        document.getElementById('legend-fast-text').textContent = 'High';
+        document.getElementById('legend-medium-text').textContent = 'Medium';
+        document.getElementById('legend-slow-text').textContent = 'Low';
+    } else {
+        const midSpeed = (minSpeed + maxSpeed) / 2;
+        document.getElementById('legend-fast').style.background = getSpeedColor(maxSpeed, minSpeed, maxSpeed);
+        document.getElementById('legend-medium').style.background = getSpeedColor(midSpeed, minSpeed, maxSpeed);
+        document.getElementById('legend-slow').style.background = getSpeedColor(minSpeed, minSpeed, maxSpeed);
+        document.getElementById('legend-fast-text').textContent = `${Math.round(maxSpeed)} Mbps`;
+        document.getElementById('legend-medium-text').textContent = `${Math.round(midSpeed)} Mbps`;
+        document.getElementById('legend-slow-text').textContent = `${Math.round(minSpeed)} Mbps`;
+    }
 }
 
 async function saveHeatmapAsImage() {
@@ -949,11 +1061,13 @@ function closeSpeedtest() {
 }
 
 async function startSpeedtest() {
+    log(`Speedtest starting (${speedTestRuns} runs) at cell [${speedtestCell.col}, ${speedtestCell.row}]`);
     speedtestRunning = true;
     document.getElementById('start-test-btn').style.display = 'none';
 
     try {
         const result = await invoke('run_speedtest', { runs: speedTestRuns });
+        log(`Speedtest complete: ${Math.round(result.download_mbps)} ↓ / ${Math.round(result.upload_mbps)} ↑ Mbps`);
 
         document.getElementById('final-download').textContent = Math.round(result.download_mbps);
         document.getElementById('final-upload').textContent = Math.round(result.upload_mbps);
@@ -975,8 +1089,9 @@ async function startSpeedtest() {
         document.getElementById('upload-value').textContent = Math.round(result.upload_mbps);
 
         await saveProject();
+        log(`Measurement saved (${currentProject.measurements.length} total)`);
     } catch (error) {
-        console.error('Speedtest failed:', error);
+        log(`Speedtest ERROR: ${error.message || error}`);
         document.getElementById('start-test-btn').style.display = 'block';
     }
 

@@ -40,27 +40,7 @@
             <input type="file" id="floorplan-input" accept="image/*" style="display: none;">
             <div class="bottom-actions">
                 <button id="select-image-btn" class="primary-btn">Select Image</button>
-                <button id="floorplan-continue-btn" class="primary-btn" disabled>Continue</button>
-            </div>
-        </div>
-
-        <!-- Scale Screen -->
-        <div id="scale-screen" class="screen">
-            <div class="header">
-                <button class="back-btn" data-target="start"><span class="material-symbols-outlined">arrow_back_ios</span></button>
-                <h2>Scale</h2>
-                <div class="spacer"></div>
-            </div>
-            <p class="hint">Drag points along a wall, enter length in meters</p>
-            <div id="scale-canvas-container" class="canvas-container">
-                <canvas id="scale-canvas"></canvas>
-            </div>
-            <div class="bottom-actions">
-                <div class="input-row">
-                    <input type="number" id="wall-length" placeholder="Length (m)" step="0.1">
-                    <button id="set-scale-btn" class="primary-btn">Set</button>
-                </div>
-                <button id="scale-continue-btn" class="primary-btn" disabled>Continue</button>
+                <button id="floorplan-continue-btn" class="primary-btn" disabled>Continue to Grid</button>
             </div>
         </div>
 
@@ -71,16 +51,15 @@
                 <h2>Grid</h2>
                 <div class="spacer"></div>
             </div>
-            <p class="hint">Choose cell size, drag to position grid</p>
+            <p class="hint">Choose grid density, drag to position</p>
             <div id="grid-canvas-container" class="canvas-container">
                 <canvas id="grid-canvas"></canvas>
             </div>
             <div class="bottom-actions">
                 <div class="cell-size-buttons">
-                    <button class="cell-size-btn" data-size="0.5">0.5m</button>
-                    <button class="cell-size-btn active" data-size="1.0">1.0m</button>
-                    <button class="cell-size-btn" data-size="1.5">1.5m</button>
-                    <button class="cell-size-btn" data-size="2.0">2.0m</button>
+                    <button class="cell-size-btn" data-density="coarse">Coarse</button>
+                    <button class="cell-size-btn active" data-density="medium">Medium</button>
+                    <button class="cell-size-btn" data-density="fine">Fine</button>
                 </div>
                 <button id="grid-continue-btn" class="primary-btn">Confirm Grid</button>
             </div>
@@ -118,7 +97,7 @@
         <!-- Heatmap Screen -->
         <div id="heatmap-screen" class="screen">
             <div class="header">
-                <button class="back-btn" data-target="start"><span class="material-symbols-outlined">arrow_back_ios</span></button>
+                <button class="back-btn" data-target="measure"><span class="material-symbols-outlined">arrow_back_ios</span></button>
                 <h2>Heatmap</h2>
                 <button id="save-heatmap-btn" class="icon-btn"><span class="material-symbols-outlined">save</span></button>
             </div>
@@ -129,6 +108,7 @@
                 <div class="heatmap-toggle">
                     <button class="toggle-btn active" data-type="download">Download</button>
                     <button class="toggle-btn" data-type="upload">Upload</button>
+                    <button class="toggle-btn" data-type="confidence">Confidence</button>
                 </div>
                 <div class="legend" id="heatmap-legend">
                     <div class="legend-item"><span class="dot" id="legend-fast"></span> <span id="legend-fast-text">Fast</span></div>
