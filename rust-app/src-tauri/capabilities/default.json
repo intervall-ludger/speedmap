@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for Speedmap",
+  "context": "local",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "store:default"
+  ],
+  "platforms": ["linux", "macOS", "windows", "android", "iOS"]
+}

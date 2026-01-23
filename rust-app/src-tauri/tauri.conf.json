@@ -1,0 +1,34 @@
+{
+    "app": {
+        "security": {
+            "csp": null
+        },
+        "windows": [
+            {
+                "fullscreen": false,
+                "height": 800,
+                "resizable": true,
+                "title": "Speedmap",
+                "width": 400
+            }
+        ],
+        "withGlobalTauri": true
+    },
+    "build": {
+        "frontendDist": "../src"
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "android": {
+            "versionCode": 1000000
+        },
+        "iOS": {
+            "minimumSystemVersion": "16.0",
+            "developmentTeam": "NW3L3KTLP7"
+        }
+    },
+    "identifier": "io.intervall.speedmap",
+    "plugins": {},
+    "productName": "Speedmap"
+}
