@@ -29,10 +29,10 @@
 
   <!-- Speed indicator bars -->
   <g fill="url(#heatGradient)">
-    <rect x="180" y="400" width="24" height="60" rx="8" opacity="0.5"/>
-    <rect x="220" y="380" width="24" height="80" rx="8" opacity="0.7"/>
-    <rect x="260" y="360" width="24" height="100" rx="8" opacity="0.85"/>
-    <rect x="300" y="380" width="24" height="80" rx="8" opacity="0.7"/>
-    <rect x="340" y="400" width="24" height="60" rx="8" opacity="0.5"/>
+    <rect x="164" y="400" width="24" height="60" rx="8" opacity="0.5"/>
+    <rect x="204" y="380" width="24" height="80" rx="8" opacity="0.7"/>
+    <rect x="244" y="360" width="24" height="100" rx="8" opacity="0.85"/>
+    <rect x="284" y="380" width="24" height="80" rx="8" opacity="0.7"/>
+    <rect x="324" y="400" width="24" height="60" rx="8" opacity="0.5"/>
   </g>
 </svg>
