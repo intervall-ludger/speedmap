@@ -6,9 +6,21 @@ Measure WiFi speed at different locations in your home and visualize the results
 
 ## Screenshots
 
-| Home | Measure | Heatmap |
-|------|---------|---------|
-| ![Home](screenshots/home.png) | ![Measure](screenshots/measure.png) | ![Heatmap](screenshots/heatmap.png) |
+<p align="center">
+  <img src="imgs/home.PNG" width="250" alt="Home Screen"/>
+</p>
+
+<p align="center">
+  <img src="imgs/grid.PNG" width="250" alt="Heatmap Screen"/>
+</p>
+
+<p align="center">
+  <img src="imgs/measure.PNG" width="250" alt="Measure Screen"/>
+</p>
+
+<p align="center">
+  <img src="imgs/heatmap.PNG" width="250" alt="Heatmap Screen"/>
+</p>
 
 ## Features
 
@@ -95,7 +107,3 @@ Contributions are welcome! Feel free to open issues or submit pull requests.
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-Built with [Tauri](https://tauri.app/) and [Claude](https://claude.ai/).
