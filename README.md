@@ -1,4 +1,7 @@
 # Speedmap
+<p align="center">
+  <img src="imgs/icon.svg" width="120" alt="Speedmap Icon"/>
+</p>
 
 Measure WiFi speed at different locations in your home and visualize the results as a heatmap on your floorplan. Find dead zones, optimize router placement, and understand your network coverage.
 
@@ -7,19 +10,12 @@ Measure WiFi speed at different locations in your home and visualize the results
 ## Screenshots
 
 <p align="center">
-  <img src="imgs/home.PNG" width="250" alt="Home Screen"/>
+  <img src="imgs/home.PNG" width="200" alt="Home Screen"/>
+  <img src="imgs/grid.PNG" width="200" alt="Grid Screen"/>
 </p>
-
 <p align="center">
-  <img src="imgs/grid.PNG" width="250" alt="Heatmap Screen"/>
-</p>
-
-<p align="center">
-  <img src="imgs/measure.PNG" width="250" alt="Measure Screen"/>
-</p>
-
-<p align="center">
-  <img src="imgs/heatmap.PNG" width="250" alt="Heatmap Screen"/>
+  <img src="imgs/measure.PNG" width="200" alt="Measure Screen"/>
+  <img src="imgs/heatmap.PNG" width="200" alt="Heatmap Screen"/>
 </p>
 
 ## Features
@@ -110,4 +106,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgment
 
-Built with [Tauri](https://tauri.app/)
+Built with [Tauri](https://tauri.app/) and [Cloudflare Speed Test](https://speed.cloudflare.com/).
