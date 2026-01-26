@@ -12,6 +12,7 @@ settingGroups:
     base:
       PRODUCT_NAME: Speedmap
       PRODUCT_BUNDLE_IDENTIFIER: io.intervall.speedmap
+      DEVELOPMENT_TEAM: NW3L3KTLP7
 targetTemplates:
   app:
     type: application
@@ -30,6 +31,7 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      - path: Externals
       - path: speedmap_iOS
       - path: assets
         buildPhase: resources
@@ -52,9 +54,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 1.0.0
         CFBundleVersion: "1.0.0"
-        NSLocalNetworkUsageDescription: Speedmap needs network access to run speed tests and measure your internet connection.
-        NSBonjourServices:
-          - _http._tcp
     entitlements:
       path: speedmap_iOS/speedmap_iOS.entitlements
     scheme:
@@ -63,8 +62,6 @@ targets:
         RUST_LOG: info
     settings:
       base:
-        DEVELOPMENT_TEAM: NW3L3KTLP7
-        CODE_SIGN_STYLE: Automatic
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64 
@@ -74,7 +71,7 @@ targets:
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
       groups: [app]
     dependencies:
-      - framework: Externals/arm64/release/libapp.a
+      - framework: libapp.a
         embed: false
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
@@ -84,8 +81,7 @@ targets:
       - sdk: UIKit.framework
       - sdk: WebKit.framework
     preBuildScripts:
-      - script: |
-          echo "Using pre-built libapp.a"
+      - script: cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:

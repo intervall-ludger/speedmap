@@ -30,38 +30,44 @@
     --transition-normal: 0.25s ease;
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
-    --ios-bottom-fix: -40px;
+    --app-height: 100%;
 }
 
-html {
-    height: 100%;
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    height: var(--app-height);
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    background: var(--bg-primary);
 }
 
 body {
-    margin: 0;
-    padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg-primary);
     color: var(--text-primary);
-    overflow: visible;
     font-size: 16px;
     line-height: 1.4;
     -webkit-font-smoothing: antialiased;
 }
 
 #app {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: var(--app-height);
     padding: 20px;
     padding-top: max(env(safe-area-inset-top), 20px);
-    padding-bottom: 0;
+    padding-bottom: 20px;
     display: flex;
     flex-direction: column;
     max-width: 500px;
     margin: 0 auto;
+}
+
+#app.debug {
+    outline: 3px solid red;
 }
 
 .screen {
@@ -88,7 +94,7 @@ body {
 }
 
 .bottom-actions {
-    padding: 12px 0 var(--ios-bottom-fix) 0;
+    padding: 12px 0 20px 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -469,6 +475,42 @@ canvas {
     box-shadow: var(--shadow-sm);
 }
 
+/* Measurement Modal */
+.measurement-modal-content {
+    justify-content: flex-start;
+    gap: 24px;
+}
+
+.measurement-display {
+    display: flex;
+    gap: 12px;
+}
+
+.measurement-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.danger-btn {
+    width: 100%;
+    padding: 16px 24px;
+    background: transparent;
+    border: 2px solid var(--red);
+    border-radius: var(--border-radius);
+    color: var(--red);
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.danger-btn:active {
+    background: var(--red);
+    color: white;
+    transform: scale(0.97);
+}
+
 .heatmap-toggle {
     display: flex;
     gap: 8px;
@@ -811,14 +853,6 @@ canvas {
     .cell-size-btn, .scale-btn {
         padding: 12px 6px;
         font-size: 14px;
-    }
-
-    .speed-display {
-        padding: 12px;
-    }
-
-    .speed-box .value {
-        font-size: 22px;
     }
 
     .speed-display-large #current-speed {

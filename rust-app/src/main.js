@@ -1,6 +1,14 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+const DEBUG = false;
+if (DEBUG) document.getElementById('app').classList.add('debug');
+
+function updateAppHeight() {
+    document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+}
+window.addEventListener('resize', updateAppHeight);
+updateAppHeight();
 
 let store = null;
 let projects = [];
@@ -324,7 +332,6 @@ function setupEventListeners() {
         showScreen('measure');
     });
 
-    document.getElementById('scan-btn').addEventListener('click', openSpeedtest);
     document.getElementById('create-heatmap-btn').addEventListener('click', () => showScreen('heatmap'));
     document.getElementById('save-heatmap-btn').addEventListener('click', saveHeatmapAsImage);
 
@@ -333,6 +340,11 @@ function setupEventListeners() {
     document.getElementById('close-speedtest').addEventListener('click', closeSpeedtest);
     document.getElementById('start-test-btn').addEventListener('click', startSpeedtest);
     document.getElementById('done-btn').addEventListener('click', finishSpeedtest);
+
+    document.getElementById('action-btn').addEventListener('click', actionBtnClick);
+    document.getElementById('close-measurement').addEventListener('click', closeMeasurementModal);
+    document.getElementById('rescan-btn').addEventListener('click', scanCell);
+    document.getElementById('delete-btn').addEventListener('click', deleteMeasurement);
 }
 
 async function createProject() {
@@ -772,16 +784,64 @@ function measureClick(e) {
 }
 
 function updateMeasureUI() {
-    const scanBtn = document.getElementById('scan-btn');
+    const actionBtn = document.getElementById('action-btn');
     const heatmapBtn = document.getElementById('create-heatmap-btn');
 
-    scanBtn.disabled = !selectedCell;
+    actionBtn.disabled = !selectedCell;
     if (selectedCell) {
-        const existing = currentProject.measurements.find(m => m.grid_x === selectedCell.col && m.grid_y === selectedCell.row);
-        scanBtn.textContent = existing ? 'View' : 'Scan';
+        const existing = currentProject.measurements.find(
+            m => m.grid_x === selectedCell.col && m.grid_y === selectedCell.row
+        );
+        actionBtn.textContent = existing ? 'View' : 'Scan';
     }
 
     heatmapBtn.disabled = currentProject.measurements.length < 2;
+}
+
+function actionBtnClick() {
+    if (!selectedCell || !currentProject) return;
+    const existing = currentProject.measurements.find(
+        m => m.grid_x === selectedCell.col && m.grid_y === selectedCell.row
+    );
+    if (existing) {
+        openMeasurementModal(existing);
+    } else {
+        openSpeedtest();
+    }
+}
+
+function openMeasurementModal(measurement) {
+    document.getElementById('modal-download').textContent = Math.round(measurement.download);
+    document.getElementById('modal-upload').textContent = Math.round(measurement.upload);
+    document.getElementById('measurement-modal').classList.add('active');
+}
+
+function closeMeasurementModal() {
+    document.getElementById('measurement-modal').classList.remove('active');
+    selectedCell = null;
+    document.getElementById('download-value').textContent = '-';
+    document.getElementById('upload-value').textContent = '-';
+    updateMeasureUI();
+    drawMeasureCanvas();
+}
+
+async function deleteMeasurement() {
+    if (!currentProject || !selectedCell) return;
+
+    log(`Deleting measurement at (${selectedCell.col}, ${selectedCell.row})`);
+    currentProject.measurements = currentProject.measurements.filter(
+        m => !(m.grid_x === selectedCell.col && m.grid_y === selectedCell.row)
+    );
+
+    await saveProject();
+    closeMeasurementModal();
+    drawMeasureCanvas();
+    showToast('Measurement deleted');
+}
+
+function scanCell() {
+    document.getElementById('measurement-modal').classList.remove('active');
+    openSpeedtest();
 }
 
 async function clearMeasurements() {

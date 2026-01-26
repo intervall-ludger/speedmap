@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>Speedmap</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
     <link rel="stylesheet" href="style.css">
@@ -88,7 +88,7 @@
                         <span class="value" id="upload-value">-</span>
                         <span class="unit">Mbps</span>
                     </div>
-                    <button id="scan-btn" class="scan-btn" disabled>Scan</button>
+                    <button id="action-btn" class="scan-btn" disabled>Scan</button>
                 </div>
                 <button id="create-heatmap-btn" class="primary-btn" disabled>Create Heatmap</button>
             </div>
@@ -178,6 +178,32 @@
                         <button id="copy-logs" class="icon-btn-small"><span class="material-symbols-outlined">content_copy</span></button>
                     </div>
                     <div id="debug-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Measurement Modal -->
+        <div id="measurement-modal" class="modal">
+            <div class="modal-content measurement-modal-content">
+                <div class="modal-header">
+                    <h3>Measurement</h3>
+                    <button id="close-measurement" class="close-btn">×</button>
+                </div>
+                <div class="measurement-display">
+                    <div class="result-box download">
+                        <span class="label">DOWNLOAD</span>
+                        <span class="value" id="modal-download">0</span>
+                        <span class="unit">Mbps</span>
+                    </div>
+                    <div class="result-box upload">
+                        <span class="label">UPLOAD</span>
+                        <span class="value" id="modal-upload">0</span>
+                        <span class="unit">Mbps</span>
+                    </div>
+                </div>
+                <div class="measurement-actions">
+                    <button id="rescan-btn" class="primary-btn">Rescan</button>
+                    <button id="delete-btn" class="danger-btn">Delete</button>
                 </div>
             </div>
         </div>
