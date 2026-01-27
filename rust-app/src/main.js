@@ -1,13 +1,62 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
-const DEBUG = false;
-if (DEBUG) document.getElementById('app').classList.add('debug');
+// Prevent iOS double-tap zoom and scroll position jumps.
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (e) {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+    }
+    lastTouchEnd = now;
+}, { passive: false });
+
+window.addEventListener('scroll', () => {
+    window.scrollTo(0, 0);
+});
+
+let keyboardActive = false;
+function isTextInput(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+document.addEventListener('focusin', (e) => {
+    if (isTextInput(e.target)) {
+        keyboardActive = true;
+        updateAppHeight();
+    }
+});
+document.addEventListener('focusout', (e) => {
+    if (isTextInput(e.target)) {
+        keyboardActive = false;
+        updateAppHeight();
+    }
+});
 
 function updateAppHeight() {
+    const vv = window.visualViewport;
     document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+
+    // When the keyboard opens, visualViewport shrinks; use the delta as bottom padding.
+    let keyboardHeight = 0;
+    if (vv) {
+        const activeEl = document.activeElement;
+        const inputFocused = isTextInput(activeEl) && !!activeEl?.offsetParent;
+        keyboardActive = inputFocused;
+        const potentialKeyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        // Filter out small safe-area deltas; only apply when an input is focused.
+        keyboardHeight = inputFocused && potentialKeyboard > 120 ? potentialKeyboard : 0;
+        document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
+    } else {
+        document.documentElement.style.setProperty('--keyboard-height', '0px');
+    }
 }
 window.addEventListener('resize', updateAppHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateAppHeight);
+    window.visualViewport.addEventListener('scroll', updateAppHeight);
+}
 updateAppHeight();
 
 let store = null;
@@ -303,10 +352,19 @@ function setupEventListeners() {
     });
 
     document.getElementById('new-project-btn').addEventListener('click', () => {
-        document.getElementById('new-project-form').style.display = 'flex';
-        document.getElementById('new-project-form').style.flexDirection = 'column';
-        document.getElementById('new-project-form').style.gap = '10px';
-        document.getElementById('new-project-btn').style.display = 'none';
+        const form = document.getElementById('new-project-form');
+        const newBtn = document.getElementById('new-project-btn');
+        const nameInput = document.getElementById('project-name');
+
+        form.style.display = 'flex';
+        form.style.flexDirection = 'column';
+        form.style.gap = '10px';
+        newBtn.style.display = 'none';
+
+        requestAnimationFrame(() => {
+            nameInput.focus();
+            updateAppHeight();
+        });
     });
 
     document.querySelectorAll('.back-btn, .icon-btn[data-target]').forEach(btn => {

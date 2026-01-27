@@ -31,6 +31,17 @@
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
     --app-height: 100%;
+    --keyboard-height: 0px;
+    --safe-bottom-raw: env(safe-area-inset-bottom, 0px);
+    /* WKWebView on iOS already accounts for the bottom inset; adding it again creates a gap. */
+    --safe-bottom: 0px;
+}
+
+/* On non-iOS platforms, use the safe-area inset (with a clamp as a guardrail). */
+@supports not (-webkit-touch-callout: none) {
+    :root {
+        --safe-bottom: clamp(0px, var(--safe-bottom-raw), 40px);
+    }
 }
 
 html, body {
@@ -59,20 +70,18 @@ body {
     height: var(--app-height);
     padding: 20px;
     padding-top: max(env(safe-area-inset-top), 20px);
-    padding-bottom: 20px;
+    padding-bottom: 8px;
     display: flex;
     flex-direction: column;
     max-width: 500px;
     margin: 0 auto;
 }
 
-#app.debug {
-    outline: 3px solid red;
-}
-
 .screen {
     display: none;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
     height: 100%;
     animation: fadeIn 0.2s ease;
 }
@@ -94,7 +103,7 @@ body {
 }
 
 .bottom-actions {
-    padding: 12px 0 20px 0;
+    padding: 12px 0 calc(6px + var(--safe-bottom) + var(--keyboard-height)) 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -241,12 +250,13 @@ input::placeholder {
 
 #project-list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 16px 0 0 0;
+    padding: 16px 0 8px 0;
 }
 
 #project-list::-webkit-scrollbar {
@@ -261,6 +271,10 @@ input::placeholder {
     flex-direction: row;
     align-items: stretch;
     height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+    flex: 0 0 100px;
+    flex-shrink: 0;
     overflow: hidden;
 }
 
@@ -360,10 +374,11 @@ input::placeholder {
     min-height: 0;
 }
 
-canvas {
+.canvas-container canvas {
     width: 100%;
     height: 100%;
-    touch-action: manipulation;
+    /* Let our JS handle pan/zoom gestures on iOS. */
+    touch-action: none;
 }
 
 .input-row {
