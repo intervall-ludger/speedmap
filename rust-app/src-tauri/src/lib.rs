@@ -264,6 +264,12 @@ fn generate_uuid() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
+#[tauri::command]
+fn get_platform() -> &'static str {
+    // Frontend uses this to gate iOS-specific safe-area behavior.
+    std::env::consts::OS
+}
+
 #[cfg(target_os = "ios")]
 fn configure_ios_webview(app: &tauri::App) {
     use tauri::Manager;
@@ -293,6 +299,7 @@ pub fn run() {
             run_speedtest,
             interpolate_speed,
             generate_uuid,
+            get_platform,
         ])
         .setup(|app| {
             #[cfg(target_os = "ios")]

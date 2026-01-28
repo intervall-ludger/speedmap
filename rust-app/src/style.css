@@ -33,15 +33,17 @@
     --app-height: 100%;
     --keyboard-height: 0px;
     --safe-bottom-raw: env(safe-area-inset-bottom, 0px);
-    /* WKWebView on iOS already accounts for the bottom inset; adding it again creates a gap. */
     --safe-bottom: 0px;
 }
 
-/* On non-iOS platforms, use the safe-area inset (with a clamp as a guardrail). */
-@supports not (-webkit-touch-callout: none) {
-    :root {
-        --safe-bottom: clamp(0px, var(--safe-bottom-raw), 40px);
-    }
+/* Once the platform is known, enable bottom safe-area padding everywhere except iOS. */
+:root[data-platform]:not([data-platform="ios"]) {
+    --safe-bottom: clamp(0px, var(--safe-bottom-raw), 40px);
+}
+
+:root[data-platform="ios"] {
+    /* WKWebView already bakes the inset in; adding it again leaves a visible gap. */
+    --safe-bottom: 0px;
 }
 
 html, body {

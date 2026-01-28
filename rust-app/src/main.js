@@ -1,6 +1,15 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+// Tell CSS which platform we're on (used for iOS safe-area handling).
+invoke('get_platform')
+    .then((platform) => {
+        document.documentElement.dataset.platform = platform;
+    })
+    .catch(() => {
+        // Running in a plain browser during dev; keep defaults.
+    });
+
 // Prevent iOS double-tap zoom and scroll position jumps.
 let lastTouchEnd = 0;
 document.addEventListener('touchend', function (e) {
