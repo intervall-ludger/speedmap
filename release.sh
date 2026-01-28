@@ -7,6 +7,28 @@ IPA_OUT="$RUST_DIR/speedmap.ipa"
 SOURCE_JSON="$SCRIPT_DIR/altstore/source.json"
 REPO="intervall-ludger/wlan-heatmap"
 
+CARGO_TOML="$RUST_DIR/src-tauri/Cargo.toml"
+PROJECT_YML="$RUST_DIR/src-tauri/gen/apple/project.yml"
+INFO_PLIST="$RUST_DIR/src-tauri/gen/apple/speedmap_iOS/Info.plist"
+
+NEW_VERSION=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version) NEW_VERSION="$2"; shift 2 ;;
+        *) echo "Usage: $0 --version <x.y.z>"; exit 1 ;;
+    esac
+done
+
+if [[ -z "$NEW_VERSION" ]]; then
+    echo "Usage: $0 --version <x.y.z>"
+    exit 1
+fi
+
+if [[ ! "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "ERROR: Version must be in format x.y.z (e.g. 1.0.1)"
+    exit 1
+fi
+
 if [[ "$(uname)" != "Darwin" ]]; then
     echo "ERROR: iOS builds require macOS"
     exit 1
@@ -18,7 +40,7 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
 fi
 source "$SCRIPT_DIR/.env"
 
-for cmd in gh jq cargo; do
+for cmd in gh jq cargo sed; do
     if ! command -v "$cmd" &>/dev/null; then
         echo "ERROR: $cmd not found. Install with: brew install $cmd"
         exit 1
@@ -30,7 +52,14 @@ if ! gh auth status &>/dev/null; then
     exit 1
 fi
 
-VERSION=$(grep '^version' "$RUST_DIR/src-tauri/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+echo "==> Bumping version to $NEW_VERSION..."
+sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
+sed -i '' "s/CFBundleShortVersionString: .*/CFBundleShortVersionString: $NEW_VERSION/" "$PROJECT_YML"
+sed -i '' "s/CFBundleVersion: .*/CFBundleVersion: \"$NEW_VERSION\"/" "$PROJECT_YML"
+sed -i '' "s/<string>[0-9]*\.[0-9]*\.[0-9]*<\/string>/<string>$NEW_VERSION<\/string>/g" "$INFO_PLIST"
+echo "    Updated Cargo.toml, project.yml, Info.plist"
+
+VERSION="$NEW_VERSION"
 TAG="v$VERSION"
 
 if gh release view "$TAG" --repo "$REPO" &>/dev/null; then
@@ -91,7 +120,7 @@ mv "$SOURCE_JSON.tmp" "$SOURCE_JSON"
 echo "    source.json updated"
 echo ""
 echo "==> Done! Commit and push:"
-echo "    git add altstore/source.json && git commit -m 'release $TAG' && git push"
+echo "    git add -A && git commit -m 'release $TAG' && git push"
 echo ""
 echo "==> AltStore source URL:"
 echo "    altstore://source?url=https://raw.githubusercontent.com/$REPO/main/altstore/source.json"
