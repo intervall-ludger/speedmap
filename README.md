@@ -28,6 +28,19 @@ Measure WiFi speed at different locations in your home and visualize the results
 - All data stored locally
 - Dark mode UI
 
+## Install (iOS)
+
+1. Install [AltStore](https://altstore.io/) on your iPhone
+2. Open this link on your iPhone or tap "Add Source" in AltStore:
+
+```
+https://raw.githubusercontent.com/intervall-ludger/wlan-heatmap/main/altstore/source.json
+```
+
+3. Find **Speedmap** in AltStore and tap Install
+
+With a free Apple ID the app needs to be refreshed every 7 days. AltStore does this automatically when your iPhone and Mac are in the same WiFi.
+
 ## How It Works
 
 1. **Create a project** and upload your floorplan
@@ -52,33 +65,69 @@ Closer measurements have more influence on the interpolated value.
 
 All data is stored locally on your device. No data is sent to external servers except for the speed test itself (Cloudflare).
 
-## Build
+---
 
-Requires [Rust](https://rustup.rs/) and Xcode.
+## Development
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/)
+- Xcode
+- `jq` (`brew install jq`)
+
+### Setup
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your Apple Development Team ID:
+
+```
+DEVELOPMENT_TEAM=your-apple-team-id
+```
+
+Find your Team ID with: `security find-identity -v -p codesigning`
+
+### Build iOS
+
+```bash
+cd rust-app
+./build.sh --ios          # build IPA
+./build.sh --ios --flash  # build and install on connected iPhone
+```
+
+### Build Desktop
 
 ```bash
 cd rust-app/src-tauri
-./build-ios.sh
-open gen/apple/speedmap.xcodeproj
+cargo tauri dev
 ```
 
-Then build and run in Xcode (Cmd+R).
+### Release (AltStore)
 
-## Generate Icons
+```bash
+./release.sh
+```
 
-Requires `rsvg-convert`:
+Builds the IPA, creates a GitHub release, uploads the IPA, and updates `altstore/source.json`.
+
+For CI releases, push a version tag:
+
+```bash
+git tag v1.0.0 && git push --tags
+```
+
+Requires these GitHub Secrets: `DEVELOPMENT_TEAM`, `CERTIFICATE_P12`, `CERTIFICATE_PASSWORD`.
+
+### Generate Icons
 
 ```bash
 brew install librsvg
-```
-
-```bash
 cd rust-app/src-tauri/icons
 
-# General icons
 rsvg-convert -w 512 -h 512 icon.svg -o icon.png
 
-# iOS icons
 DEST="../gen/apple/Assets.xcassets/AppIcon.appiconset"
 for size in 20 29 40 60 76; do
   rsvg-convert -w $size -h $size icon.svg -o "$DEST/AppIcon-${size}x${size}@1x.png"

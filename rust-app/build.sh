@@ -42,6 +42,19 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "ERROR: .env not found. Copy .env.example to .env and set your DEVELOPMENT_TEAM."
+    exit 1
+fi
+source "$ENV_FILE"
+
+TAURI_CONF="src-tauri/tauri.conf.json"
+cp "$TAURI_CONF" "$TAURI_CONF.bak"
+jq --arg team "$DEVELOPMENT_TEAM" '.bundle.iOS.developmentTeam = $team' "$TAURI_CONF.bak" > "$TAURI_CONF"
+trap 'mv "$SCRIPT_DIR/$TAURI_CONF.bak" "$SCRIPT_DIR/$TAURI_CONF"' EXIT
+
 echo "Building iOS app..."
 cargo tauri ios build
 

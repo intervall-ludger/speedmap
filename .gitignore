@@ -39,6 +39,9 @@ DerivedData/
 .idea/
 .vscode/
 
+# Environment
+.env
+
 # Claude
 .claude/
 

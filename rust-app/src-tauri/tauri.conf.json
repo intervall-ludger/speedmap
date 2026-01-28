@@ -25,7 +25,7 @@
         },
         "iOS": {
             "minimumSystemVersion": "16.0",
-            "developmentTeam": "NW3L3KTLP7"
+            "developmentTeam": ""
         }
     },
     "identifier": "io.intervall.speedmap",
