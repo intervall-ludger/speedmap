@@ -108,19 +108,18 @@ cargo tauri dev
 
 ### Release (AltStore)
 
+Releases are built locally and published to GitHub. Requires write access to the repo and the [GitHub CLI](https://cli.github.com/) (`brew install gh`).
+
 ```bash
+# 1. Bump version in rust-app/src-tauri/Cargo.toml
+# 2. Run release
 ./release.sh
+# 3. Commit and push the updated altstore/source.json
 ```
 
-Builds the IPA, creates a GitHub release, uploads the IPA, and updates `altstore/source.json`.
+This builds the IPA, creates a GitHub release, uploads the IPA, and updates `altstore/source.json`. Users with the AltStore source get the update automatically.
 
-For CI releases, push a version tag:
-
-```bash
-git tag v1.0.0 && git push --tags
-```
-
-Requires these GitHub Secrets: `DEVELOPMENT_TEAM`, `CERTIFICATE_P12`, `CERTIFICATE_PASSWORD`.
+Want to build your own version? Fork the repo, set up `.env`, and use `rust-app/build.sh --ios`.
 
 ### Generate Icons
 

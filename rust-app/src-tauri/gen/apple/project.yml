@@ -12,7 +12,7 @@ settingGroups:
     base:
       PRODUCT_NAME: Speedmap
       PRODUCT_BUNDLE_IDENTIFIER: io.intervall.speedmap
-      DEVELOPMENT_TEAM: JG8754GB8Q
+      DEVELOPMENT_TEAM: XH2NQ35FBY
 targetTemplates:
   app:
     type: application
