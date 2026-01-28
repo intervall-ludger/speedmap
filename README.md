@@ -3,6 +3,8 @@
   <img src="imgs/icon.svg" width="120" alt="Speedmap Icon"/>
 </p>
 
+> **Note:** This app is currently in early testing. Expect bugs and breaking changes.
+
 Measure WiFi speed at different locations in your home and visualize the results as a heatmap on your floorplan. Find dead zones, optimize router placement, and understand your network coverage.
 
 **Free to use, modify, and distribute.**
