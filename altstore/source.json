@@ -10,7 +10,11 @@
       "subtitle": "WiFi speed heatmaps",
       "localizedDescription": "Measure your internet speed at different locations and visualize the results as a heatmap on your floor plan. Upload a floor plan image, set the scale, place measurement points, and run speed tests powered by Cloudflare to see exactly where your WiFi is fast or slow.",
       "iconURL": "https://raw.githubusercontent.com/intervall-ludger/wlan-heatmap/main/rust-app/src-tauri/icons/128x128.png",
-      "tintColor": "4A90D9",
+      "tintColor": "#4A90D9",
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {}
+      },
       "versions": [
         {
           "version": "1.0.0",
