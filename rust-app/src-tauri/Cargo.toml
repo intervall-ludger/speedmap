@@ -1,6 +1,6 @@
 [package]
 name = "speedmap"
-version = "1.0.0"
+version = "1.0.1"
 description = "Measure internet speed and visualize as heatmap"
 authors = ["Ludger Radke"]
 license = "MIT"

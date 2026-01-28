@@ -34,10 +34,16 @@ DerivedData/
 
 # Generated icons
 **/icons/*.png
+**/icons/*.icns
+**/icons/*.ico
+**/icons/android/
 
 # IDE
 .idea/
 .vscode/
+
+# R
+.Rhistory
 
 # Environment
 .env
