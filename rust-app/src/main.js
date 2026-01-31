@@ -39,7 +39,8 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener('focusout', (e) => {
     if (isTextInput(e.target)) {
         keyboardActive = false;
-        updateAppHeight();
+        // Delay to let iOS keyboard animation complete
+        setTimeout(() => updateAppHeight(), 100);
     }
 });
 
