@@ -17,6 +17,14 @@
       },
       "versions": [
         {
+          "version": "1.0.3",
+          "date": "2026-01-31",
+          "localizedDescription": "",
+          "downloadURL": "https://github.com/intervall-ludger/wlan-heatmap/releases/download/v1.0.3/speedmap.ipa",
+          "size": 19249733,
+          "minOSVersion": "16.0"
+        },
+        {
           "version": "1.0.2",
           "date": "2026-01-31",
           "localizedDescription": "",
