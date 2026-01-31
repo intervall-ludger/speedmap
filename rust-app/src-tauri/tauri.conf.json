@@ -1,34 +1,35 @@
 {
-    "app": {
-        "security": {
-            "csp": null
-        },
-        "windows": [
-            {
-                "fullscreen": true,
-                "height": 900,
-                "resizable": true,
-                "title": "Speedmap",
-                "width": 400
-            }
-        ],
-        "withGlobalTauri": true
+  "app": {
+    "security": {
+      "csp": null
     },
-    "build": {
-        "frontendDist": "../src"
+    "windows": [
+      {
+        "fullscreen": true,
+        "height": 900,
+        "resizable": true,
+        "title": "Speedmap",
+        "width": 400
+      }
+    ],
+    "withGlobalTauri": true
+  },
+  "build": {
+    "frontendDist": "../src"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "android": {
+      "versionCode": 1000000
     },
-    "bundle": {
-        "active": true,
-        "targets": "all",
-        "android": {
-            "versionCode": 1000000
-        },
-        "iOS": {
-            "minimumSystemVersion": "16.0",
-            "developmentTeam": ""
-        }
-    },
-    "identifier": "io.intervall.speedmap",
-    "plugins": {},
-    "productName": "Speedmap"
+    "iOS": {
+      "minimumSystemVersion": "16.0",
+      "developmentTeam": ""
+    }
+  },
+  "identifier": "io.intervall.speedmap",
+  "plugins": {},
+  "productName": "Speedmap",
+  "version": "1.0.2"
 }
