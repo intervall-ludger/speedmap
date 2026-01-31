@@ -355,25 +355,35 @@ function showDeleteDialog(project) {
 }
 
 function setupEventListeners() {
-    document.getElementById('create-btn').addEventListener('click', createProject);
+    const createBtn = document.getElementById('create-btn');
+    createBtn.addEventListener('click', createProject);
+    createBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        createProject();
+    });
     document.getElementById('project-name').addEventListener('keypress', e => {
         if (e.key === 'Enter') createProject();
     });
 
-    document.getElementById('new-project-btn').addEventListener('click', () => {
+    const newProjectBtn = document.getElementById('new-project-btn');
+    const showNewProjectForm = () => {
         const form = document.getElementById('new-project-form');
-        const newBtn = document.getElementById('new-project-btn');
         const nameInput = document.getElementById('project-name');
 
         form.style.display = 'flex';
         form.style.flexDirection = 'column';
         form.style.gap = '10px';
-        newBtn.style.display = 'none';
+        newProjectBtn.style.display = 'none';
 
         requestAnimationFrame(() => {
             nameInput.focus();
             updateAppHeight();
         });
+    };
+    newProjectBtn.addEventListener('click', showNewProjectForm);
+    newProjectBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        showNewProjectForm();
     });
 
     document.querySelectorAll('.back-btn, .icon-btn[data-target]').forEach(btn => {
