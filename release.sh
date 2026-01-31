@@ -8,8 +8,6 @@ SOURCE_JSON="$SCRIPT_DIR/altstore/source.json"
 REPO="intervall-ludger/wlan-heatmap"
 
 CARGO_TOML="$RUST_DIR/src-tauri/Cargo.toml"
-PROJECT_YML="$RUST_DIR/src-tauri/gen/apple/project.yml"
-INFO_PLIST="$RUST_DIR/src-tauri/gen/apple/speedmap_iOS/Info.plist"
 
 NEW_VERSION=""
 while [[ $# -gt 0 ]]; do
@@ -54,10 +52,7 @@ fi
 
 echo "==> Bumping version to $NEW_VERSION..."
 sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" "$CARGO_TOML"
-sed -i '' "s/CFBundleShortVersionString: .*/CFBundleShortVersionString: $NEW_VERSION/" "$PROJECT_YML"
-sed -i '' "s/CFBundleVersion: .*/CFBundleVersion: \"$NEW_VERSION\"/" "$PROJECT_YML"
-sed -i '' "s/<string>[0-9]*\.[0-9]*\.[0-9]*<\/string>/<string>$NEW_VERSION<\/string>/g" "$INFO_PLIST"
-echo "    Updated Cargo.toml, project.yml, Info.plist"
+echo "    Updated Cargo.toml"
 
 VERSION="$NEW_VERSION"
 TAG="v$VERSION"
@@ -70,10 +65,24 @@ fi
 
 echo "==> Building iOS app ($TAG)..."
 cd "$RUST_DIR"
+
+echo "    Cleaning iOS project to pick up new version..."
+rm -rf src-tauri/gen/apple/speedmap.xcodeproj \
+       src-tauri/gen/apple/speedmap_iOS \
+       src-tauri/gen/apple/project.yml \
+       src-tauri/gen/apple/build
+
 TAURI_CONF="src-tauri/tauri.conf.json"
+# Set version permanently
+jq --arg ver "$NEW_VERSION" '.version = $ver' "$TAURI_CONF" > "$TAURI_CONF.tmp" && mv "$TAURI_CONF.tmp" "$TAURI_CONF"
+# Backup (with new version), then add developmentTeam temporarily
 cp "$TAURI_CONF" "$TAURI_CONF.bak"
-jq --arg team "$DEVELOPMENT_TEAM" '.bundle.iOS.developmentTeam = $team' "$TAURI_CONF.bak" > "$TAURI_CONF"
+jq --arg team "$DEVELOPMENT_TEAM" '.bundle.iOS.developmentTeam = $team' "$TAURI_CONF" > "$TAURI_CONF.tmp" && mv "$TAURI_CONF.tmp" "$TAURI_CONF"
 trap 'mv "$RUST_DIR/$TAURI_CONF.bak" "$RUST_DIR/$TAURI_CONF"' EXIT
+
+echo "    Regenerating iOS project..."
+cargo tauri ios init
+
 cargo tauri ios build
 
 IPA_SRC="src-tauri/gen/apple/build/arm64/Speedmap.ipa"
@@ -119,8 +128,9 @@ mv "$SOURCE_JSON.tmp" "$SOURCE_JSON"
 
 echo "    source.json updated"
 echo ""
+TAURI_CONF_PATH="$RUST_DIR/src-tauri/tauri.conf.json"
 echo "==> Done! Commit and push:"
-echo "    git add $CARGO_TOML $PROJECT_YML $INFO_PLIST $SOURCE_JSON && git commit -m 'release $TAG' && git push"
+echo "    git add $CARGO_TOML $TAURI_CONF_PATH $SOURCE_JSON && git commit -m 'release $TAG' && git push"
 echo ""
 echo "==> AltStore source URL:"
 echo "    altstore://source?url=https://raw.githubusercontent.com/$REPO/main/altstore/source.json"
