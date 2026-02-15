@@ -10,64 +10,25 @@ invoke('get_platform')
         // Running in a plain browser during dev; keep defaults.
     });
 
-// Prevent iOS double-tap zoom and scroll position jumps.
+// Prevent iOS double-tap zoom
 let lastTouchEnd = 0;
 document.addEventListener('touchend', function (e) {
     const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-    }
+    if (now - lastTouchEnd <= 300) e.preventDefault();
     lastTouchEnd = now;
 }, { passive: false });
 
-window.addEventListener('scroll', () => {
-    window.scrollTo(0, 0);
-});
-
-let keyboardActive = false;
-function isTextInput(el) {
-    if (!el) return false;
-    const tag = el.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-}
-document.addEventListener('focusin', (e) => {
-    if (isTextInput(e.target)) {
-        keyboardActive = true;
-        updateAppHeight();
-    }
-});
-document.addEventListener('focusout', (e) => {
-    if (isTextInput(e.target)) {
-        keyboardActive = false;
-        // Delay to let iOS keyboard animation complete
-        setTimeout(() => updateAppHeight(), 100);
-    }
-});
-
+// Keep #app pinned to visible area (handles iOS keyboard)
 function updateAppHeight() {
-    const vv = window.visualViewport;
-    document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-
-    // When the keyboard opens, visualViewport shrinks; use the delta as bottom padding.
-    let keyboardHeight = 0;
-    if (vv) {
-        const activeEl = document.activeElement;
-        const inputFocused = isTextInput(activeEl) && !!activeEl?.offsetParent;
-        keyboardActive = inputFocused;
-        const potentialKeyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-        // Filter out small safe-area deltas; only apply when an input is focused.
-        keyboardHeight = inputFocused && potentialKeyboard > 120 ? potentialKeyboard : 0;
-        document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
-    } else {
-        document.documentElement.style.setProperty('--keyboard-height', '0px');
+    const app = document.getElementById('app');
+    if (window.visualViewport) {
+        app.style.height = window.visualViewport.height + 'px';
     }
 }
-window.addEventListener('resize', updateAppHeight);
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', updateAppHeight);
-    window.visualViewport.addEventListener('scroll', updateAppHeight);
 }
-updateAppHeight();
+window.addEventListener('resize', updateAppHeight);
 
 let store = null;
 let projects = [];
@@ -128,10 +89,12 @@ function getConfidenceColor(confidence) {
 }
 
 const debugLogs = [];
+let debugOverlayOpen = false;
 
 function log(msg) {
     const time = new Date().toLocaleTimeString();
     debugLogs.push(`[${time}] ${msg}`);
+    if (debugLogs.length > 500) debugLogs.shift();
     console.log(msg);
     updateDebugPanel();
 }
@@ -139,8 +102,41 @@ function log(msg) {
 function updateDebugPanel() {
     const content = document.getElementById('debug-content');
     if (content) {
-        content.innerHTML = debugLogs.map(l => `<div class="log-line">${l}</div>`).join('');
+        const lines = debugLogs.map(l => `<div class="log-line">${l}</div>`).join('');
+        content.innerHTML = lines;
         content.scrollTop = content.scrollHeight;
+    }
+    const overlayContent = document.getElementById('debug-overlay-content');
+    if (overlayContent) {
+        const overlayLines = debugLogs.slice(-60).map(l => `<div>${l}</div>`).join('');
+        overlayContent.innerHTML = overlayLines;
+        overlayContent.scrollTop = overlayContent.scrollHeight;
+    }
+}
+
+function setDebugOverlay(open) {
+    debugOverlayOpen = open;
+    const overlay = document.getElementById('debug-overlay');
+    if (overlay) overlay.classList.toggle('open', open);
+}
+
+function setupDebugOverlay() {
+    const toggle = document.getElementById('debug-overlay-toggle');
+    const closeBtn = document.getElementById('debug-overlay-close');
+    const copyBtn = document.getElementById('debug-overlay-copy');
+    if (toggle) {
+        toggle.addEventListener('click', () => setDebugOverlay(true));
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => setDebugOverlay(false));
+    }
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(debugLogs.join('\n')).then(() => {
+                copyBtn.textContent = 'OK';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1000);
+            });
+        });
     }
 }
 
@@ -158,6 +154,8 @@ function showToast(message) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     log('App starting...');
+    setupDebugOverlay();
+    setDebugOverlay(false);
 
     try {
         const { Store } = window.__TAURI_PLUGIN_STORE__;
@@ -243,15 +241,13 @@ function setupSettingsListeners() {
 
 function renderProjectList() {
     const list = document.getElementById('project-list');
-    const form = document.getElementById('new-project-form');
-    const newBtn = document.getElementById('new-project-btn');
+    const nameInput = document.getElementById('project-name');
+    const createBtn = document.getElementById('create-btn');
 
     if (projects.length === 0) {
         list.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:40px 0;">Create your first speedmap project</p>';
-        form.style.display = 'flex';
-        form.style.flexDirection = 'column';
-        form.style.gap = '10px';
-        newBtn.style.display = 'none';
+        nameInput.classList.remove('hidden');
+        createBtn.textContent = 'Create Project';
     } else {
         list.innerHTML = projects.map(p => {
             const date = new Date(p.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -271,8 +267,8 @@ function renderProjectList() {
                 </div>
             `;
         }).join('');
-        form.style.display = 'none';
-        newBtn.style.display = 'block';
+        nameInput.classList.add('hidden');
+        createBtn.textContent = 'New Project';
         setupProjectListeners();
     }
 }
@@ -357,40 +353,32 @@ function showDeleteDialog(project) {
 
 function setupEventListeners() {
     const createBtn = document.getElementById('create-btn');
-    createBtn.addEventListener('click', createProject);
+    const handleCreateBtn = () => {
+        const nameInput = document.getElementById('project-name');
+        if (nameInput.classList.contains('hidden')) {
+            nameInput.classList.remove('hidden');
+            createBtn.textContent = 'Create Project';
+            requestAnimationFrame(() => nameInput.focus());
+        } else {
+            createProject();
+        }
+    };
+    createBtn.addEventListener('click', handleCreateBtn);
     createBtn.addEventListener('touchend', (e) => {
         e.preventDefault();
-        createProject();
+        handleCreateBtn();
     });
     document.getElementById('project-name').addEventListener('keypress', e => {
         if (e.key === 'Enter') createProject();
-    });
-
-    const newProjectBtn = document.getElementById('new-project-btn');
-    const showNewProjectForm = () => {
-        const form = document.getElementById('new-project-form');
-        const nameInput = document.getElementById('project-name');
-
-        form.style.display = 'flex';
-        form.style.flexDirection = 'column';
-        form.style.gap = '10px';
-        newProjectBtn.style.display = 'none';
-
-        requestAnimationFrame(() => {
-            nameInput.focus();
-            updateAppHeight();
-        });
-    };
-    newProjectBtn.addEventListener('click', showNewProjectForm);
-    newProjectBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        showNewProjectForm();
     });
 
     document.querySelectorAll('.back-btn, .icon-btn[data-target]').forEach(btn => {
         btn.addEventListener('click', () => showScreen(btn.dataset.target));
     });
 
+    document.getElementById('floorplan-preview').addEventListener('click', () => {
+        document.getElementById('floorplan-input').click();
+    });
     document.getElementById('select-image-btn').addEventListener('click', () => {
         document.getElementById('floorplan-input').click();
     });
@@ -450,8 +438,9 @@ async function createProject() {
     projects.unshift(currentProject);
     await saveProjects();
     log(`Project created: ${id}`);
-    nameInput.value = '';
+
     showScreen('floorplan');
+    nameInput.value = '';
 }
 
 function loadProject(project) {
@@ -471,40 +460,73 @@ function loadProject(project) {
     }
 }
 
+function ensureFloorplanImage(callback) {
+    if (floorplanImage && floorplanImage.complete) {
+        callback();
+    } else if (currentProject?.floorplan_data) {
+        log('Loading floorplan from project data');
+        floorplanImage = new Image();
+        floorplanImage.onload = callback;
+        floorplanImage.src = currentProject.floorplan_data;
+    } else {
+        log('No floorplan data available');
+    }
+}
+
 function showScreen(screenId) {
     log(`Screen: ${screenId}`);
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(screenId + '-screen').classList.add('active');
 
+
     if (screenId === 'start') {
         renderProjectList();
-    } else if (screenId === 'grid' && floorplanImage) {
-        setGridDensity(currentProject.grid_density || 'medium');
-        setTimeout(() => { initGridCanvas(); drawGridCanvas(); }, 100);
-    } else if (screenId === 'measure' && floorplanImage) {
-        setTimeout(() => { initMeasureCanvas(); drawMeasureCanvas(); }, 200);
-    } else if (screenId === 'heatmap' && floorplanImage) {
-        setTimeout(() => {
-            initHeatmapCanvas();
-            document.getElementById('heatmap-loading')?.remove();
-            const loading = document.createElement('div');
-            loading.id = 'heatmap-loading';
-            loading.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.7);color:white;padding:15px 25px;border-radius:8px;';
-            loading.textContent = 'Generating heatmap...';
-            document.getElementById('heatmap-canvas-container').appendChild(loading);
-            requestAnimationFrame(() => { drawHeatmapCanvas(); loading.remove(); });
-        }, 100);
+    } else if (screenId === 'floorplan') {
+        const hasImage = currentProject?.floorplan_data;
+        const selectBtn = document.getElementById('select-image-btn');
+        const continueBtn = document.getElementById('floorplan-continue-btn');
+        if (hasImage) {
+            selectBtn.classList.remove('hidden');
+            continueBtn.disabled = false;
+            document.getElementById('floorplan-preview').innerHTML = `<img src="${currentProject.floorplan_data}">`;
+        } else {
+            selectBtn.classList.add('hidden');
+            continueBtn.disabled = true;
+        }
+    } else if (screenId === 'grid') {
+        ensureFloorplanImage(() => {
+            setGridDensity(currentProject.grid_density || 'medium');
+            setTimeout(() => { initGridCanvas(); drawGridCanvas(); }, 100);
+        });
+    } else if (screenId === 'measure') {
+        ensureFloorplanImage(() => {
+            setTimeout(() => { initMeasureCanvas(); drawMeasureCanvas(); }, 100);
+        });
+    } else if (screenId === 'heatmap') {
+        ensureFloorplanImage(() => {
+            setTimeout(() => {
+                initHeatmapCanvas();
+                document.getElementById('heatmap-loading')?.remove();
+                const loading = document.createElement('div');
+                loading.id = 'heatmap-loading';
+                loading.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.7);color:white;padding:15px 25px;border-radius:8px;';
+                loading.textContent = 'Generating heatmap...';
+                document.getElementById('heatmap-canvas-container').appendChild(loading);
+                requestAnimationFrame(() => { drawHeatmapCanvas(); loading.remove(); });
+            }, 100);
+        });
     }
 }
 
 function handleFloorplanSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
-
+    log(`File selected: ${file.name} (${Math.round(file.size / 1024)}KB)`);
     const reader = new FileReader();
     reader.onload = (event) => {
         floorplanImage = new Image();
         floorplanImage.onload = () => {
+            log(`Floorplan image: ${floorplanImage.width}x${floorplanImage.height}`);
             currentProject.floorplan_data = event.target.result;
             currentProject.image_width = floorplanImage.width;
             currentProject.image_height = floorplanImage.height;
@@ -518,6 +540,7 @@ function handleFloorplanSelect(e) {
 
             document.getElementById('floorplan-preview').innerHTML = `<img src="${event.target.result}">`;
             document.getElementById('floorplan-continue-btn').disabled = false;
+            document.getElementById('select-image-btn').classList.remove('hidden');
             saveProject();
         };
         floorplanImage.src = event.target.result;
@@ -1131,53 +1154,7 @@ function setupSpeedtestListeners() {
 
 function openSpeedtest() {
     if (!selectedCell) return;
-
-    const existing = currentProject.measurements.find(m => m.grid_x === selectedCell.col && m.grid_y === selectedCell.row);
-
-    if (existing) {
-        showViewDialog(existing);
-    } else {
-        startNewSpeedtest();
-    }
-}
-
-function showViewDialog(measurement) {
-    const overlay = document.createElement('div');
-    overlay.id = 'view-dialog';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;';
-
-    const box = document.createElement('div');
-    box.style.cssText = 'background:var(--bg-secondary);border-radius:12px;padding:24px;width:100%;max-width:300px;';
-    box.innerHTML = `
-        <h3 style="text-align:center;margin-bottom:20px;font-size:18px;">Measurement</h3>
-        <div style="display:flex;gap:12px;margin-bottom:20px;">
-            <div style="flex:1;text-align:center;padding:15px;background:var(--bg-tertiary);border-radius:8px;">
-                <div style="font-size:10px;color:var(--text-secondary);">DOWNLOAD</div>
-                <div style="font-size:24px;font-weight:bold;color:var(--green);">${Math.round(measurement.download)}</div>
-                <div style="font-size:10px;color:var(--text-secondary);">Mbps</div>
-            </div>
-            <div style="flex:1;text-align:center;padding:15px;background:var(--bg-tertiary);border-radius:8px;">
-                <div style="font-size:10px;color:var(--text-secondary);">UPLOAD</div>
-                <div style="font-size:24px;font-weight:bold;color:var(--blue);">${Math.round(measurement.upload)}</div>
-                <div style="font-size:10px;color:var(--text-secondary);">Mbps</div>
-            </div>
-        </div>
-        <div style="display:flex;gap:12px;">
-            <button id="view-close" style="flex:1;padding:12px;background:var(--bg-tertiary);border:none;border-radius:8px;color:var(--text-secondary);font-size:16px;cursor:pointer;">Close</button>
-            <button id="view-rescan" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:8px;color:white;font-size:16px;cursor:pointer;">Rescan</button>
-        </div>
-    `;
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    document.getElementById('view-close').addEventListener('click', () => overlay.remove());
-    document.getElementById('view-rescan').addEventListener('click', () => {
-        overlay.remove();
-        startNewSpeedtest();
-    });
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
+    startNewSpeedtest();
 }
 
 function startNewSpeedtest() {
