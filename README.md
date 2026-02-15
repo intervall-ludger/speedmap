@@ -95,8 +95,9 @@ Find your Team ID with: `security find-identity -v -p codesigning`
 
 ```bash
 cd rust-app
-./build.sh --ios          # build IPA
-./build.sh --ios --flash  # build and install on connected iPhone
+./build.sh --ios                     # build IPA only
+./build.sh --flash                   # build and install on connected iPhone
+./build.sh --flash --version 1.0.4   # build with version bump and install
 ```
 
 ### Build Desktop

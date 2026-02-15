@@ -2,14 +2,16 @@
 set -euo pipefail
 
 FLASH=false
+VERSION=""
 
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --ios         Build iOS app"
-    echo "  --flash       Build and deploy to connected iPhone"
-    echo "  -h, --help    Show this help message"
+    echo "  --ios              Build iOS app"
+    echo "  --flash            Build and deploy to connected iPhone"
+    echo "  --version <x.y.z>  Set version before building"
+    echo "  -h, --help         Show this help message"
     exit 0
 }
 
@@ -26,6 +28,10 @@ while [[ $# -gt 0 ]]; do
         --flash)
             FLASH=true
             shift
+            ;;
+        --version)
+            VERSION="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -52,7 +58,14 @@ source "$ENV_FILE"
 
 TAURI_CONF="src-tauri/tauri.conf.json"
 cp "$TAURI_CONF" "$TAURI_CONF.bak"
-jq --arg team "$DEVELOPMENT_TEAM" '.bundle.iOS.developmentTeam = $team' "$TAURI_CONF.bak" > "$TAURI_CONF"
+
+if [[ -n "$VERSION" ]]; then
+    echo "Setting version to $VERSION..."
+    jq --arg team "$DEVELOPMENT_TEAM" --arg ver "$VERSION" \
+        '.bundle.iOS.developmentTeam = $team | .version = $ver' "$TAURI_CONF.bak" > "$TAURI_CONF"
+else
+    jq --arg team "$DEVELOPMENT_TEAM" '.bundle.iOS.developmentTeam = $team' "$TAURI_CONF.bak" > "$TAURI_CONF"
+fi
 trap 'mv "$SCRIPT_DIR/$TAURI_CONF.bak" "$SCRIPT_DIR/$TAURI_CONF"' EXIT
 
 echo "Building iOS app..."
@@ -68,10 +81,10 @@ if [[ -f "$IPA_PATH" ]]; then
         echo ""
         echo "Deploying to iPhone..."
 
-        DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null | grep "iPhone.*connected" | awk '{print $3}' | head -1)
+        DEVICE_ID=$(xcrun devicectl list devices 2>/dev/null | grep "iPhone" | grep -v "unavailable" | awk '{print $3}' | head -1)
 
         if [[ -z "$DEVICE_ID" ]]; then
-            echo "ERROR: No connected iPhone found"
+            echo "ERROR: No available iPhone found"
             echo "Connect your iPhone and trust this computer"
             exit 1
         fi

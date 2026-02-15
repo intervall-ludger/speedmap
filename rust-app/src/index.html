@@ -18,11 +18,8 @@
             </div>
             <div id="project-list"></div>
             <div class="bottom-actions">
-                <div id="new-project-form">
-                    <input type="text" id="project-name" placeholder="Project Name">
-                    <button id="create-btn" class="primary-btn">Create Project</button>
-                </div>
-                <button id="new-project-btn" class="secondary-btn" style="display: none;">New Project</button>
+                <input type="text" id="project-name" class="project-name-input hidden" placeholder="Project Name">
+                <button id="create-btn" class="primary-btn">New Project</button>
             </div>
         </div>
 
@@ -33,13 +30,13 @@
                 <h2>Floorplan</h2>
                 <div class="spacer"></div>
             </div>
-            <p class="hint">Select an image of your floorplan</p>
+            <p class="hint">Tap the image area to select a floorplan</p>
             <div id="floorplan-preview" class="preview-area">
                 <span>No image selected</span>
             </div>
             <input type="file" id="floorplan-input" accept="image/*" style="display: none;">
             <div class="bottom-actions">
-                <button id="select-image-btn" class="primary-btn">Select Image</button>
+                <button id="select-image-btn" class="secondary-btn hidden">Change Image</button>
                 <button id="floorplan-continue-btn" class="primary-btn" disabled>Continue to Grid</button>
             </div>
         </div>
@@ -208,6 +205,17 @@
             </div>
         </div>
     </div>
+    <div id="debug-overlay" class="debug-overlay">
+        <div class="debug-overlay-header">
+            <span>Viewport Debug</span>
+            <div class="debug-overlay-actions">
+                <button id="debug-overlay-copy" class="debug-overlay-close">Copy</button>
+                <button id="debug-overlay-close" class="debug-overlay-close">×</button>
+            </div>
+        </div>
+        <div id="debug-overlay-content"></div>
+    </div>
+    <button id="debug-overlay-toggle" class="debug-overlay-toggle">Debug</button>
     <script src="main.js"></script>
 </body>
 </html>
